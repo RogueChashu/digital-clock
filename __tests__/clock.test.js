@@ -1,7 +1,7 @@
 import {
   COLORS, getTimeDisplay, getDigitWidths, getColonLayout,
   drawColonDots,
-  COLON_RADIUS_RATIO,
+  FONT_ADJUST, COLON_RADIUS_RATIO,
 } from '../clock.js';
 
 /**
@@ -354,6 +354,10 @@ describe('drawColonDots()', () => {
  * ────────────────────────────────────────────
  */
 describe('layout constants', () => {
+  it('FONT_ADJUST is 0.1', () => {
+    expect(FONT_ADJUST).toBe(0.1);
+  });
+
   it('COLON_RADIUS_RATIO is 0.12', () => {
     expect(COLON_RADIUS_RATIO).toBe(0.12);
   });

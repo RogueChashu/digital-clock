@@ -27,6 +27,11 @@ The clock canvas must never render below **250px** in width. Enforced by:
 - Custom `Digital` TrueType font (`fonts/digital-7.ttf`)
 - Loaded via `@font-face` in CSS; `document.fonts.ready` gate in JS
 
+### Vertical Adjustment
+
+- `FONT_ADJUST = 0.1` — compensates for glyphs sitting high in the em square
+- Applied as `yOffset = cy + fontSize * FONT_ADJUST` to vertically center digit glyphs
+
 ### Two-Pass Rendering
 
 1. **Ghost pass** (background): `"88:88"` in `COLORS.inactive` (`#160000`) — all segments dimly visible

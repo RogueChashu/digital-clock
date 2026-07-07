@@ -1,6 +1,6 @@
 import {
   COLORS, getTimeDisplay, getDigitWidths, getColonLayout,
-  drawColonDots,
+  drawColonDots, FONT_ADJUST,
 } from './clock.js';
 
 const canvas = document.getElementById('clockCanvas');
@@ -52,7 +52,7 @@ function draw() {
   ctx.font = `${fontSize}px Digital`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const yOffset = cy;
+  const yOffset = cy + fontSize * FONT_ADJUST;
 
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;

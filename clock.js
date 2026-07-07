@@ -31,6 +31,8 @@ export function getDigitWidths(cssW, cssH) {
   return { digitH, digitW, gap, colonW, totalW, startX, digitY };
 }
 
+export const FONT_ADJUST = 0.1;
+
 export const COLON_RADIUS_RATIO = 0.12;
 
 export function getColonLayout(cy, digitH, digitW) {
