@@ -9,7 +9,7 @@ if (!ctx) throw new Error('Canvas not supported');
 const pmDot = document.getElementById('pmDot');
 const pmLabel = document.querySelector('.pm-label');
 
-const GHOST_CHARS = ['8', '8', '8', '8'];
+
 
 let cssW, cssH;
 let cachedLayout;
@@ -59,7 +59,7 @@ function draw() {
   ctx.fillStyle = COLORS.inactive;
   drawColonDots(ctx, cx, y1, y2, colonR, COLORS.inactive, false);
   for (let i = 0; i < 4; i++) {
-    ctx.fillText(GHOST_CHARS[i], centers[i], yOffset);
+    ctx.fillText(chars[i], centers[i], yOffset);
   }
 
   ctx.fillStyle = COLORS.active;

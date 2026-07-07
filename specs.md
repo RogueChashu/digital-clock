@@ -34,7 +34,7 @@ The clock canvas must never render below **250px** in width. Enforced by:
 
 ### Two-Pass Rendering
 
-1. **Ghost pass** (background): `"88:88"` in `COLORS.inactive` (`#160000`) — all segments dimly visible
+1. **Ghost pass** (background): current time digits in `COLORS.inactive` (`#160000`) — dim underlay matching the active digit shapes
 2. **Foreground pass** (active): actual time digits in `COLORS.active` (`#ff2020`) with `shadowColor: COLORS.glow` (`#ff0000`), `shadowBlur: 3`
 
 ### Colors

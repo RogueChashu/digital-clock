@@ -6,7 +6,7 @@ A retro 80s-style alarm clock rendered on HTML Canvas with a custom digital font
 
 - **12-hour clock** with leading zeros, PM indicator (label + dot), updates every second
 - **Custom `digital-7.ttf` font** via `@font-face` — authentic 7-segment digit shapes
-- **Two-pass canvas rendering**: dim `"88:88"` ghost in `#160000`, then active digits in `#ff2020` with red glow (`shadowBlur: 3`)
+- **Two-pass canvas rendering**: dim ghost of the current time in `#160000`, then active digits in `#ff2020` with red glow (`shadowBlur: 3`)
 - **Asymmetric colon dots** positioned to align with upper/lower digit halves
 - **DPR-aware** canvas scaling for sharp rendering on HiDPI displays
 - **Responsive**: fluid `clamp()` sizing, `max-width: 1200px`, minimum 250px canvas width, no scrollbars
