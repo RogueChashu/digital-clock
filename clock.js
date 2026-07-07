@@ -7,19 +7,16 @@ export const COLORS = {
 export function getTimeDisplay(date = new Date()) {
   let hours = date.getHours();
   const minutes = date.getMinutes();
-  const seconds = date.getSeconds();
   const isPM = hours >= 12;
   const rawHours = hours;
   hours = hours % 12 || 12;
   return {
     hours,
     minutes,
-    seconds,
     isPM,
     rawHours,
     hourStr: String(hours).padStart(2, '0'),
     minStr: String(minutes).padStart(2, '0'),
-    secStr: String(seconds).padStart(2, '0'),
   };
 }
 
@@ -34,19 +31,6 @@ export function getDigitWidths(cssW, cssH) {
   return { digitH, digitW, gap, colonW, totalW, startX, digitY };
 }
 
-export function mapFontChar(ch) {
-  return ch === '1' ? 'I' : ch;
-}
-
-export const FONT_ADJUST = 0.06;
-
-export function drawDigitChar(ctx, ch, cx, cy, fontSize) {
-  ctx.font = `${Math.round(fontSize)}px Digital`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(ch, cx, cy + fontSize * FONT_ADJUST);
-}
-
 export const COLON_RADIUS_RATIO = 0.12;
 
 export function getColonLayout(cy, digitH, digitW) {
@@ -57,16 +41,20 @@ export function getColonLayout(cy, digitH, digitW) {
   };
 }
 
-export function drawColonDots(ctx, cx, y1, y2, r, color) {
+export function drawColonDots(ctx, cx, y1, y2, r, color, glow = true) {
   ctx.fillStyle = color;
-  ctx.shadowColor = COLORS.glow;
-  ctx.shadowBlur = 3;
+  if (glow) {
+    ctx.shadowColor = COLORS.glow;
+    ctx.shadowBlur = 3;
+  }
   ctx.beginPath();
   ctx.arc(cx, y1, r, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
   ctx.arc(cx, y2, r, 0, Math.PI * 2);
   ctx.fill();
-  ctx.shadowColor = 'transparent';
-  ctx.shadowBlur = 0;
+  if (glow) {
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+  }
 }

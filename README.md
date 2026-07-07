@@ -5,7 +5,7 @@ A retro 80s-style alarm clock rendered on HTML Canvas with a custom digital font
 ## Features
 
 - **12-hour clock** with leading zeros, PM indicator (label + dot), updates every second
-- **Custom `Digital.TTF` font** via `@font-face` — authentic 7-segment digit shapes
+- **Custom `digital-7.ttf` font** via `@font-face` — authentic 7-segment digit shapes
 - **Two-pass canvas rendering**: dim `"88:88"` ghost in `#160000`, then active digits in `#ff2020` with red glow (`shadowBlur: 3`)
 - **Asymmetric colon dots** positioned to align with upper/lower digit halves
 - **DPR-aware** canvas scaling for sharp rendering on HiDPI displays
@@ -28,12 +28,12 @@ A retro 80s-style alarm clock rendered on HTML Canvas with a custom digital font
 ├── index.html          # Entry point
 ├── style.css           # Layout, @font-face, dark theme, PM indicator
 ├── script.js           # Canvas draw loop, resize, PM positioning
-├── clock.js            # Exports: COLORS, layout, font mapping, rendering
+├── clock.js            # Exports: COLORS, layout, colon rendering
 ├── favicon.svg         # SVG favicon (two 7-segment "8" shapes)
 ├── fonts/
-│   └── Digital.TTF     # Custom digital clock font
+│   └── digital-7.ttf   # Custom digital clock font
 ├── __tests__/
-│   └── clock.test.js   # 70 unit tests
+│   └── clock.test.js   # 57 unit tests
 ├── specs.md            # Full specification document
 └── README.md
 ```
@@ -54,7 +54,7 @@ Then open `http://localhost:8000`.
 npm test
 ```
 
-70 tests cover all exported functions, layout ratios, font offsets, rendering passes, edge cases, and color constants.
+57 tests cover all exported functions, layout ratios, rendering passes, edge cases, and color constants.
 
 ---
 

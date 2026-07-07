@@ -24,28 +24,13 @@ The clock canvas must never render below **250px** in width. Enforced by:
 
 ### Font
 
-- Custom `Digital` TrueType font (`fonts/Digital.TTF`)
+- Custom `Digital` TrueType font (`fonts/digital-7.ttf`)
 - Loaded via `@font-face` in CSS; `document.fonts.ready` gate in JS
-
-### `drawDigitChar(ctx, ch, cx, cy, fontSize)`
-
-- `ctx.font`: `<rounded fontSize>px Digital`
-- `ctx.textAlign`: `center`
-- `ctx.textBaseline`: `middle`
-- `ctx.fillText(ch, cx, cy + fontSize * FONT_ADJUST)`
-- `FONT_ADJUST = 0.06` — downward shift compensating for font glyphs sitting high in the em square
-
-### `mapFontChar(ch)`
-
-- Replaces `'1'` with `'I'` (font workaround: the `1` glyph looks wrong, `I` glyph matches a proper 7-segment "1")
-- All other characters pass through unchanged
-- Applied via `Array.map` in the draw loop (`script.js:37`)
-- In the active pass, `'I'` is drawn with `textAlign: 'right'` at the right edge of its digit cell, matching how a real 7-segment "1" sits on the right (`script.js:54-58`)
 
 ### Two-Pass Rendering
 
 1. **Ghost pass** (background): `"88:88"` in `COLORS.inactive` (`#160000`) — all segments dimly visible
-2. **Foreground pass** (active): actual time digits in `COLORS.active` (`#ff2020`) with `shadowColor: COLORS.glow` (`#ff0000`), `shadowBlur: 2`
+2. **Foreground pass** (active): actual time digits in `COLORS.active` (`#ff2020`) with `shadowColor: COLORS.glow` (`#ff0000`), `shadowBlur: 3`
 
 ### Colors
 
@@ -61,16 +46,16 @@ The clock canvas must never render below **250px** in width. Enforced by:
 - `y1 = cy - digitH * 0.25` — midpoint of upper digit half
 - `y2 = cy + digitH * 0.17` — raised slightly from midpoint of lower digit half
 - `radius = digitW * COLON_RADIUS_RATIO` where `COLON_RADIUS_RATIO = 0.12`
-- Glow: `shadowColor: COLORS.glow`, `shadowBlur: 2`
-- Shadow reset to `transparent` / `0` after drawing
+- Optional `glow` parameter (default `true`): when `true`, applies `shadowColor: COLORS.glow`, `shadowBlur: 3` and resets to `transparent` / `0` after drawing; when `false`, shadow state is left unchanged
+- Ghost pass calls with `glow=false` to avoid unnecessary shadow manipulation
 
 ## Time Formatting
 
 - **12-hour format** with leading zeros: `01`–`12`
-- `hourStr`, `minStr`, `secStr` always 2 characters
+- `hourStr`, `minStr` always 2 characters
 - `isPM` = `hours >= 12`; AM = `hours < 12`
 - `rawHours` preserves original 24h value
-- Updates every second via `setInterval(draw, 1000)`
+- Updates every second via recursive `setTimeout` aligned to the next second boundary (`1000 - Date.now() % 1000`), eliminating cumulative drift
 
 ## PM Indicator
 
@@ -112,5 +97,18 @@ The clock canvas must never render below **250px** in width. Enforced by:
 
 - Canvas physical resolution scaled by `window.devicePixelRatio`
 - CSS size vs physical size decoupled for sharp rendering on HiDPI
-- `ctx.setTransform(DPR, 0, 0, DPR, 0, 0)` before draw
-- Redraw on window resize
+- `ctx.setTransform(dpr, 0, 0, dpr, 0, 0)` before draw
+- `dpr` read dynamically from `window.devicePixelRatio` on every resize, supporting multi-monitor setups with different pixel ratios
+
+## Layout Caching
+
+- `getDigitWidths()` result cached in `cachedLayout` after first computation
+- Cache invalidated (`cachedLayout = null`) only on `resize()`
+- `positionPM()` reads from the same cache via `getLayout()`
+- Avoids 60+ redundant layout recalculations per minute
+
+## Timer Management
+
+- Recursive `setTimeout` (not `setInterval`) schedules the next tick at the next second boundary
+- `clearTimeout(timerId)` called on resize to prevent double-draw (immediate draw + stale timer tick)
+- Canvas context null-guarded: throws `'Canvas not supported'` if `getContext('2d')` returns `null`
