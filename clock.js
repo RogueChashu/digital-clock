@@ -4,6 +4,12 @@ export const COLORS = {
   glow: '#ff0000',
 };
 
+export const DIGIT_HEIGHT_RATIO = 0.8;
+export const DIGIT_WIDTH_RATIO = 0.55;
+export const GAP_RATIO = 0.20;
+export const COLON_WIDTH_RATIO = 0.50;
+export const GLOW_BLUR = 3;
+
 export function getTimeDisplay(date = new Date()) {
   let hours = date.getHours();
   const minutes = date.getMinutes();
@@ -21,42 +27,20 @@ export function getTimeDisplay(date = new Date()) {
 }
 
 export function getDigitWidths(cssW, cssH) {
-  const digitH = cssH * 0.8;
-  const digitW = digitH * 0.55;
-  const gap = digitW * 0.20;
-  const colonW = digitW * 0.50;
+  const digitH = cssH * DIGIT_HEIGHT_RATIO;
+  const digitW = digitH * DIGIT_WIDTH_RATIO;
+  const gap = digitW * GAP_RATIO;
+  const colonW = digitW * COLON_WIDTH_RATIO;
   const totalW = 4 * digitW + 3 * gap + colonW;
   const startX = (cssW - totalW) / 2;
   const digitY = (cssH - digitH) / 2;
   return { digitH, digitW, gap, colonW, totalW, startX, digitY };
 }
 
-export const FONT_ADJUST = 0.1;
-
-export const COLON_RADIUS_RATIO = 0.12;
-
-export function getColonLayout(cy, digitH, digitW) {
-  return {
-    y1: cy - digitH * 0.25,
-    y2: cy + digitH * 0.17,
-    radius: digitW * COLON_RADIUS_RATIO,
-  };
-}
-
-export function drawColonDots(ctx, cx, y1, y2, r, color, glow = true) {
-  ctx.fillStyle = color;
-  if (glow) {
-    ctx.shadowColor = COLORS.glow;
-    ctx.shadowBlur = 3;
-  }
-  ctx.beginPath();
-  ctx.arc(cx, y1, r, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(cx, y2, r, 0, Math.PI * 2);
-  ctx.fill();
-  if (glow) {
-    ctx.shadowColor = 'transparent';
-    ctx.shadowBlur = 0;
-  }
+export function getTextOffset(ctx, fontSize) {
+  ctx.font = `${fontSize}px Digital`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const m = ctx.measureText('8');
+  return (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
 }

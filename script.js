@@ -1,25 +1,46 @@
 import {
-  COLORS, getTimeDisplay, getDigitWidths, getColonLayout,
-  drawColonDots, FONT_ADJUST,
+  COLORS, getTimeDisplay, getDigitWidths, getTextOffset,
+  DIGIT_HEIGHT_RATIO, GLOW_BLUR,
 } from './clock.js';
 
 const canvas = document.getElementById('clockCanvas');
+if (!canvas) {
+  console.warn('Canvas element not found');
+  throw new Error('Canvas element missing from DOM');
+}
 const ctx = canvas.getContext('2d');
 if (!ctx) throw new Error('Canvas not supported');
 const pmDot = document.getElementById('pmDot');
 const pmLabel = document.querySelector('.pm-label');
-
-
+if (!pmDot) console.warn('PM dot element not found');
+if (!pmLabel) console.warn('PM label element not found');
 
 let cssW, cssH;
 let cachedLayout;
-let timerId;
+let centers, yOffset, digitTopY;
+let textOffset, shift1;
+let prevTimeStr;
+let timerId, resizeTimerId;
 
 function getLayout() {
   if (!cachedLayout) {
     cachedLayout = getDigitWidths(cssW, cssH);
   }
   return cachedLayout;
+}
+
+function resolveLayout() {
+  const { digitH, digitW, gap, colonW, startX, digitY } = getLayout();
+  digitTopY = digitY;
+  const cx = startX + 2 * digitW + 2 * gap + colonW / 2;
+  centers = [
+    startX + digitW / 2,
+    startX + digitW + gap + digitW / 2,
+    cx,
+    cx + colonW / 2 + gap + digitW / 2,
+    cx + colonW / 2 + gap + digitW + gap + digitW / 2,
+  ];
+  yOffset = digitY + digitH / 2 + textOffset;
 }
 
 function scheduleTick() {
@@ -33,49 +54,35 @@ function tick() {
 }
 
 function draw() {
-  const { digitH, digitW, gap, colonW, startX, digitY } = getLayout();
+  if (cssW === 0 || cssH === 0 || !pmDot) return;
   const { hourStr, minStr, isPM } = getTimeDisplay();
+  const timeStr = hourStr + minStr;
+  if (timeStr === prevTimeStr) return;
+  prevTimeStr = timeStr;
 
-  const fontSize = Math.round(digitH);
-  const cx = startX + 2 * digitW + 2 * gap + colonW / 2;
-  const centers = [
-    startX + digitW / 2,
-    startX + digitW + gap + digitW / 2,
-    cx + colonW / 2 + gap + digitW / 2,
-    cx + colonW / 2 + gap + digitW + gap + digitW / 2,
-  ];
-  const cy = digitY + digitH / 2;
-  const { y1, y2, radius: colonR } = getColonLayout(cy, digitH, digitW);
-
-  const chars = [hourStr[0], hourStr[1], minStr[0], minStr[1]];
-
-  ctx.font = `${fontSize}px Digital`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  const yOffset = cy + fontSize * FONT_ADJUST;
+  ctx.clearRect(0, 0, cssW, cssH);
+  const chars = [hourStr[0], hourStr[1], ':', minStr[0], minStr[1]];
 
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
   ctx.fillStyle = COLORS.inactive;
-  drawColonDots(ctx, cx, y1, y2, colonR, COLORS.inactive, false);
-  for (let i = 0; i < 4; i++) {
-    ctx.fillText(chars[i], centers[i], yOffset);
+  for (let i = 0; i < 5; i++) {
+    ctx.fillText(i === 2 ? ':' : '8', centers[i], yOffset);
   }
 
   ctx.fillStyle = COLORS.active;
   ctx.shadowColor = COLORS.glow;
-  ctx.shadowBlur = 3;
-  for (let i = 0; i < 4; i++) {
-    ctx.fillText(chars[i], centers[i], yOffset);
+  ctx.shadowBlur = GLOW_BLUR;
+  for (let i = 0; i < 5; i++) {
+    ctx.fillText(chars[i], centers[i] + (chars[i] === '1' ? shift1 : 0), yOffset);
   }
-  drawColonDots(ctx, cx, y1, y2, colonR, COLORS.active);
 
   pmDot.classList.toggle('active', isPM);
 }
 
 function positionPM() {
-  const { digitY } = getLayout();
-  const digitTop = canvas.offsetTop + digitY;
+  if (!pmLabel || !pmDot) return;
+  const digitTop = canvas.offsetTop + digitTopY;
   pmLabel.style.marginTop = `${digitTop}px`;
 
   const pmFontSize = parseFloat(getComputedStyle(pmLabel).fontSize);
@@ -85,6 +92,11 @@ function positionPM() {
 
 function resize() {
   clearTimeout(timerId);
+  clearTimeout(resizeTimerId);
+  resizeTimerId = setTimeout(doResize, 80);
+}
+
+function doResize() {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
   cssW = rect.width;
@@ -92,7 +104,20 @@ function resize() {
   canvas.width = cssW * dpr;
   canvas.height = cssH * dpr;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
   cachedLayout = null;
+  const fontSize = Math.round(cssH * DIGIT_HEIGHT_RATIO);
+  ctx.font = `${fontSize}px Digital`;
+  textOffset = getTextOffset(ctx, fontSize);
+
+  const m8 = ctx.measureText('8');
+  const m1 = ctx.measureText('1');
+  shift1 = m8.actualBoundingBoxRight - m1.actualBoundingBoxRight;
+
+  resolveLayout();
+  prevTimeStr = null;
   positionPM();
   draw();
   scheduleTick();

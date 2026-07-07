@@ -1,7 +1,8 @@
 import {
-  COLORS, getTimeDisplay, getDigitWidths, getColonLayout,
-  drawColonDots,
-  FONT_ADJUST, COLON_RADIUS_RATIO,
+  COLORS, getTimeDisplay, getDigitWidths,
+  getTextOffset,
+  DIGIT_HEIGHT_RATIO, DIGIT_WIDTH_RATIO, GAP_RATIO,
+  COLON_WIDTH_RATIO, GLOW_BLUR,
 } from '../clock.js';
 
 /**
@@ -41,16 +42,8 @@ describe('COLORS', () => {
  * ────────────────────────────────────────────
  */
 describe('getTimeDisplay()', () => {
-  beforeEach(() => {
-    jest.useFakeTimers();
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
   it('returns an object with required fields', () => {
-    const td = getTimeDisplay();
+    const td = getTimeDisplay(new Date(2025, 0, 1, 10, 30, 0));
     expect(td).toHaveProperty('hours');
     expect(td).toHaveProperty('minutes');
     expect(td).toHaveProperty('isPM');
@@ -62,23 +55,33 @@ describe('getTimeDisplay()', () => {
   });
 
   it('does not return seconds or secStr', () => {
-    const td = getTimeDisplay();
+    const td = getTimeDisplay(new Date(2025, 0, 1, 10, 30, 0));
     expect(td).not.toHaveProperty('seconds');
     expect(td).not.toHaveProperty('secStr');
   });
 
   it('defaults to current date when no argument given', () => {
-    const now = new Date();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2024, 11, 25, 8, 15, 0));
     const td = getTimeDisplay();
-    expect(td.hours).toBe(now.getHours() % 12 || 12);
-    expect(td.minutes).toBe(now.getMinutes());
+    expect(td.hours).toBe(8);
+    expect(td.minutes).toBe(15);
+    expect(td.hourStr).toBe('08');
+    expect(td.minStr).toBe('15');
+    expect(td.isPM).toBe(false);
+    jest.useRealTimers();
   });
 
-  it('defaults to current date when undefined is passed', () => {
-    const now = new Date();
+  it('uses default parameter when undefined is passed', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2024, 11, 25, 20, 45, 0));
     const td = getTimeDisplay(undefined);
-    expect(td.hours).toBe(now.getHours() % 12 || 12);
-    expect(td.minutes).toBe(now.getMinutes());
+    expect(td.hours).toBe(8);
+    expect(td.minutes).toBe(45);
+    expect(td.hourStr).toBe('08');
+    expect(td.minStr).toBe('45');
+    expect(td.isPM).toBe(true);
+    jest.useRealTimers();
   });
 
   it('formats midnight (0:00) as 12:00 AM', () => {
@@ -162,6 +165,16 @@ describe('getTimeDisplay()', () => {
     expect(td.rawHours).toBe(15);
   });
 
+  it('rawHours is 0 at midnight', () => {
+    const d = new Date(2025, 0, 1, 0, 0, 0);
+    expect(getTimeDisplay(d).rawHours).toBe(0);
+  });
+
+  it('rawHours is 12 at noon', () => {
+    const d = new Date(2025, 0, 1, 12, 0, 0);
+    expect(getTimeDisplay(d).rawHours).toBe(12);
+  });
+
   it('handles leap year date correctly', () => {
     const d = new Date(2024, 1, 29, 14, 30, 0);
     const td = getTimeDisplay(d);
@@ -186,11 +199,6 @@ describe('getDigitWidths()', () => {
     expect(l).toHaveProperty('totalW');
     expect(l).toHaveProperty('startX');
     expect(l).toHaveProperty('digitY');
-  });
-
-  it('digit height is 80% of canvas height', () => {
-    const l = getDigitWidths(500, 222);
-    expect(l.digitH).toBeCloseTo(222 * 0.8, 5);
   });
 
   it('startX is positive when canvas is wide enough', () => {
@@ -261,135 +269,108 @@ describe('getDigitWidths()', () => {
 
 /**
  * ────────────────────────────────────────────
- *  drawColonDots()
+ *  CONSTANTS
  * ────────────────────────────────────────────
  */
-describe('drawColonDots()', () => {
+describe('getTextOffset()', () => {
   let ctx;
 
   beforeEach(() => {
     ctx = {
-      fillStyle: null,
-      shadowColor: null,
-      shadowBlur: null,
-      beginPath: jest.fn(),
-      arc: jest.fn(),
-      fill: jest.fn(),
+      font: '',
+      textAlign: '',
+      textBaseline: '',
+      measureText: jest.fn().mockReturnValue({
+        actualBoundingBoxAscent: 15,
+        actualBoundingBoxDescent: 3,
+      }),
     };
   });
 
-  it('draws two dots (upper + lower)', () => {
-    drawColonDots(ctx, 100, 185, 215, 4, '#ff2020');
-    expect(ctx.beginPath).toHaveBeenCalledTimes(2);
-    expect(ctx.arc).toHaveBeenCalledTimes(2);
-    expect(ctx.fill).toHaveBeenCalledTimes(2);
+  it('sets ctx.font, textAlign, and textBaseline', () => {
+    getTextOffset(ctx, 100);
+    expect(ctx.font).toBe('100px Digital');
+    expect(ctx.textAlign).toBe('center');
+    expect(ctx.textBaseline).toBe('middle');
   });
 
-  it('uses the provided color', () => {
-    drawColonDots(ctx, 100, 185, 215, 4, '#ff2020');
-    expect(ctx.fillStyle).toBe('#ff2020');
+  it('calls measureText with "8"', () => {
+    getTextOffset(ctx, 100);
+    expect(ctx.measureText).toHaveBeenCalledWith('8');
   });
 
-  it('sets glow during drawing', () => {
-    let shadowColorLog = [];
-    let shadowColorVal;
-    Object.defineProperty(ctx, 'shadowColor', {
-      get: () => shadowColorVal,
-      set: (v) => { shadowColorVal = v; shadowColorLog.push(v); },
-      configurable: true,
+  it('returns (ascent - descent) / 2', () => {
+    ctx.measureText.mockReturnValue({
+      actualBoundingBoxAscent: 20,
+      actualBoundingBoxDescent: 10,
     });
-    drawColonDots(ctx, 100, 185, 215, 4, '#ff2020');
-    expect(shadowColorLog).toContain(COLORS.glow);
-    expect(shadowColorLog).toContain('transparent');
+    expect(getTextOffset(ctx, 100)).toBe(5);
   });
 
-  it('draws dots at the given y1 and y2 positions', () => {
-    drawColonDots(ctx, 100, 185, 215, 5, '#ff2020');
-    expect(ctx.arc).toHaveBeenNthCalledWith(1, 100, 185, 5, 0, Math.PI * 2);
-    expect(ctx.arc).toHaveBeenNthCalledWith(2, 100, 215, 5, 0, Math.PI * 2);
+  it('returns 0 when ascent equals descent', () => {
+    ctx.measureText.mockReturnValue({
+      actualBoundingBoxAscent: 10,
+      actualBoundingBoxDescent: 10,
+    });
+    expect(getTextOffset(ctx, 100)).toBe(0);
   });
 
-  it('resets shadow after drawing', () => {
-    drawColonDots(ctx, 100, 185, 215, 4, '#ff2020');
-    expect(ctx.shadowColor).toBe('transparent');
-    expect(ctx.shadowBlur).toBe(0);
+  it('handles zero ascent/descent', () => {
+    ctx.measureText.mockReturnValue({
+      actualBoundingBoxAscent: 0,
+      actualBoundingBoxDescent: 0,
+    });
+    expect(getTextOffset(ctx, 100)).toBe(0);
   });
 
-  it('works with inactive color for ghost pass', () => {
-    drawColonDots(ctx, 100, 185, 215, 4, COLORS.inactive);
-    expect(ctx.fillStyle).toBe(COLORS.inactive);
+  it('handles negative ascent', () => {
+    ctx.measureText.mockReturnValue({
+      actualBoundingBoxAscent: -5,
+      actualBoundingBoxDescent: 10,
+    });
+    expect(getTextOffset(ctx, 100)).toBe(-7.5);
   });
 
-  it('works with active color for foreground pass', () => {
-    drawColonDots(ctx, 100, 185, 215, 4, COLORS.active);
-    expect(ctx.fillStyle).toBe(COLORS.active);
+  it('sets ctx properties even with fontSize 0', () => {
+    getTextOffset(ctx, 0);
+    expect(ctx.font).toBe('0px Digital');
+    expect(ctx.textAlign).toBe('center');
+    expect(ctx.textBaseline).toBe('middle');
   });
 
-  it('skips glow manipulation when glow=false', () => {
-    const initialShadowColor = '#123456';
-    const initialShadowBlur = 7;
-    ctx.shadowColor = initialShadowColor;
-    ctx.shadowBlur = initialShadowBlur;
-    drawColonDots(ctx, 100, 185, 215, 4, COLORS.inactive, false);
-    expect(ctx.shadowColor).toBe(initialShadowColor);
-    expect(ctx.shadowBlur).toBe(initialShadowBlur);
-  });
-
-  it('still draws dots when glow=false', () => {
-    drawColonDots(ctx, 100, 185, 215, 4, COLORS.inactive, false);
-    expect(ctx.beginPath).toHaveBeenCalledTimes(2);
-    expect(ctx.arc).toHaveBeenCalledTimes(2);
-    expect(ctx.fill).toHaveBeenCalledTimes(2);
-  });
-
-  it('still applies the provided color when glow=false', () => {
-    drawColonDots(ctx, 100, 185, 215, 4, COLORS.inactive, false);
-    expect(ctx.fillStyle).toBe(COLORS.inactive);
+  it('works with different font sizes', () => {
+    ctx.measureText.mockReturnValue({
+      actualBoundingBoxAscent: 30,
+      actualBoundingBoxDescent: 6,
+    });
+    expect(getTextOffset(ctx, 200)).toBe(12);
   });
 });
 
 /**
  * ────────────────────────────────────────────
- *  CONSTANTS
+ *  LAYOUT CONSTANTS
  * ────────────────────────────────────────────
  */
 describe('layout constants', () => {
-  it('FONT_ADJUST is 0.1', () => {
-    expect(FONT_ADJUST).toBe(0.1);
+  it('DIGIT_HEIGHT_RATIO is 0.8', () => {
+    expect(DIGIT_HEIGHT_RATIO).toBe(0.8);
   });
 
-  it('COLON_RADIUS_RATIO is 0.12', () => {
-    expect(COLON_RADIUS_RATIO).toBe(0.12);
-  });
-});
-
-/**
- * ────────────────────────────────────────────
- *  getColonLayout()
- * ────────────────────────────────────────────
- */
-describe('getColonLayout()', () => {
-  it('returns y1, y2, and radius', () => {
-    const cl = getColonLayout(200, 160, 88);
-    expect(cl).toHaveProperty('y1');
-    expect(cl).toHaveProperty('y2');
-    expect(cl).toHaveProperty('radius');
+  it('DIGIT_WIDTH_RATIO is 0.55', () => {
+    expect(DIGIT_WIDTH_RATIO).toBe(0.55);
   });
 
-  it('y1 is cy - digitH * 0.25', () => {
-    expect(getColonLayout(200, 160, 88).y1).toBeCloseTo(200 - 160 * 0.25, 5);
+  it('GAP_RATIO is 0.20', () => {
+    expect(GAP_RATIO).toBe(0.20);
   });
 
-  it('y2 is cy + digitH * 0.17', () => {
-    expect(getColonLayout(200, 160, 88).y2).toBeCloseTo(200 + 160 * 0.17, 5);
+  it('COLON_WIDTH_RATIO is 0.50', () => {
+    expect(COLON_WIDTH_RATIO).toBe(0.50);
   });
 
-  it('radius is digitW * COLON_RADIUS_RATIO', () => {
-    expect(getColonLayout(200, 160, 100).radius).toBeCloseTo(100 * COLON_RADIUS_RATIO, 5);
-  });
-
-  it('handles zero dimensions', () => {
-    expect(getColonLayout(0, 0, 0)).toEqual({ y1: 0, y2: 0, radius: 0 });
+  it('GLOW_BLUR is 3', () => {
+    expect(GLOW_BLUR).toBe(3);
   });
 });
 
@@ -400,11 +381,6 @@ describe('getColonLayout()', () => {
  */
 describe('edge cases', () => {
   describe('getTimeDisplay edge cases', () => {
-    it('handles 0 minutes correctly', () => {
-      const d = new Date(2025, 0, 1, 10, 0, 0);
-      expect(getTimeDisplay(d).minStr).toBe('00');
-    });
-
     it('handles invalid date by returning NaN-based strings', () => {
       const d = new Date('not-a-date');
       const td = getTimeDisplay(d);
@@ -429,32 +405,13 @@ describe('edge cases', () => {
       const l = getDigitWidths(1000, 100);
       expect(l.startX).toBeGreaterThanOrEqual(0);
     });
-  });
 
-  describe('drawColonDots edge cases', () => {
-    let ctx;
-
-    beforeEach(() => {
-      ctx = {
-        fillStyle: null,
-        shadowColor: null,
-        shadowBlur: null,
-        beginPath: jest.fn(),
-        arc: jest.fn(),
-        fill: jest.fn(),
-      };
-    });
-
-    it('handles zero radius', () => {
-      drawColonDots(ctx, 100, 200, 210, 0, '#ff2020');
-      expect(ctx.arc).toHaveBeenNthCalledWith(1, 100, 200, 0, 0, Math.PI * 2);
-      expect(ctx.arc).toHaveBeenNthCalledWith(2, 100, 210, 0, 0, Math.PI * 2);
-    });
-
-    it('handles identical y positions (dots overlap)', () => {
-      drawColonDots(ctx, 100, 200, 200, 4, '#ff2020');
-      expect(ctx.arc).toHaveBeenNthCalledWith(1, 100, 200, 4, 0, Math.PI * 2);
-      expect(ctx.arc).toHaveBeenNthCalledWith(2, 100, 200, 4, 0, Math.PI * 2);
+    it('handles negative dimensions without crashing', () => {
+      const l = getDigitWidths(-100, -100);
+      expect(l.digitH).toBeLessThan(0);
+      expect(l.digitW).toBeLessThan(0);
+      expect(typeof l.totalW).toBe('number');
+      expect(isNaN(l.totalW)).toBe(false);
     });
   });
 });

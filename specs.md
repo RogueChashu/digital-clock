@@ -29,30 +29,34 @@ The clock canvas must never render below **250px** in width. Enforced by:
 
 ### Vertical Adjustment
 
-- `FONT_ADJUST = 0.1` — compensates for glyphs sitting high in the em square
-- Applied as `yOffset = cy + fontSize * FONT_ADJUST` to vertically center digit glyphs
+- `getTextOffset(ctx, fontSize)` uses `ctx.measureText('8')` to compute the exact vertical offset for centering the glyphs within the digit area
+- Returns `(actualBoundingBoxAscent - actualBoundingBoxDescent) / 2`
+- Cached in `textOffset` on resize, reused every tick
 
 ### Two-Pass Rendering
 
-1. **Ghost pass** (background): current time digits in `COLORS.inactive` (`#160000`) — dim underlay matching the active digit shapes
-2. **Foreground pass** (active): actual time digits in `COLORS.active` (`#ff2020`) with `shadowColor: COLORS.glow` (`#ff0000`), `shadowBlur: 3`
+1. **Ghost pass** (background): `'8'` (all 7 segments) for digits + `':'` in `COLORS.inactive` (`#160000`) — dim filament underlay showing the segment grid
+2. **Foreground pass** (active): actual time digits + `':'` in `COLORS.active` (`#ff2020`) with `shadowColor: COLORS.glow` (`#ff0000`), `shadowBlur: 3`
+- Draws skipped when `hourStr + minStr` hasn't changed since last render (59/60 ticks are no-ops)
 
 ### Colors
 
 | Token     | Value      | Usage                    |
 |-----------|------------|--------------------------|
-| `active`  | `#ff2020`  | Foreground digits & dots |
-| `inactive`| `#160000`  | Ghost/background digits  |
+| `active`  | `#ff2020`  | Foreground digits & colon|
+| `inactive`| `#160000`  | Ghost/filament digits    |
 | `glow`    | `#ff0000`  | Shadow for glow effect   |
 
-### Colon Dots (`drawColonDots`)
+### Colon
 
-- Two arcs at explicit y positions (asymmetric)
-- `y1 = cy - digitH * 0.25` — midpoint of upper digit half
-- `y2 = cy + digitH * 0.17` — raised slightly from midpoint of lower digit half
-- `radius = digitW * COLON_RADIUS_RATIO` where `COLON_RADIUS_RATIO = 0.12`
-- Optional `glow` parameter (default `true`): when `true`, applies `shadowColor: COLORS.glow`, `shadowBlur: 3` and resets to `transparent` / `0` after drawing; when `false`, shadow state is left unchanged
-- Ghost pass calls with `glow=false` to avoid unnecessary shadow manipulation
+- The `:` character from `digital-7.ttf` is drawn as part of the 5-character glyph array (hour₁, hour₂, `:`, min₁, min₂)
+- Same font, baseline, glow treatment as digits
+- Ghost pass draws `:` in inactive color; foreground pass draws `:` in active color with glow
+
+### Narrow Digit Alignment
+
+- `'1'` is narrower than other digits (80 vs 420 em units); drawn right-shifted by `actualBoundingBoxRight_8 - actualBoundingBoxRight_1` so its right edge aligns with the ghost `'8'`'s right edge
+- Offset cached in `shift1` on resize
 
 ## Time Formatting
 
@@ -108,12 +112,16 @@ The clock canvas must never render below **250px** in width. Enforced by:
 ## Layout Caching
 
 - `getDigitWidths()` result cached in `cachedLayout` after first computation
+- `centers`, `yOffset`, `digitTopY` computed once in `resolveLayout()` on resize, reused every tick
+- `textOffset` (from `getTextOffset`) and `shift1` (narrow-digit right-alignment) cached on resize
 - Cache invalidated (`cachedLayout = null`) only on `resize()`
-- `positionPM()` reads from the same cache via `getLayout()`
-- Avoids 60+ redundant layout recalculations per minute
+- Avoids 180+ redundant layout recalculations per minute
 
 ## Timer Management
 
 - Recursive `setTimeout` (not `setInterval`) schedules the next tick at the next second boundary
-- `clearTimeout(timerId)` called on resize to prevent double-draw (immediate draw + stale timer tick)
+ - `clearTimeout(timerId)` called on resize to prevent double-draw
+- `resize()` debounced at 80ms to avoid expensive font measurement on rapid resize events
+- `scheduleTick()` fires `tick()` which calls `draw()`; `draw()` early-returns if `hourStr + minStr` hasn't changed, avoiding wasted canvas clears and redraws (59/60 ticks are no-ops)
 - Canvas context null-guarded: throws `'Canvas not supported'` if `getContext('2d')` returns `null`
+- `canvas`, `pmDot`, `pmLabel` null-guarded: warn to console and bail early if missing from DOM

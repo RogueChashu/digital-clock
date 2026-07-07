@@ -66,6 +66,7 @@ body {
 
 .pm-dot {
   position: absolute;
+  top: 0;
   left: clamp(6px, 1vw, 14px);
   width: clamp(10px, 2.5vw, 24px);
   height: clamp(10px, 2.5vw, 24px);
